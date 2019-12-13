@@ -1,8 +1,6 @@
-## Welcome to GitHub Pages
+## Welcome to the Boston Election Data Exploration Page
 
-You can use the [editor on GitHub](https://github.com/dav01145/bostonelections/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+In this page, we look at Boston voting trends over time by neighborhood and begin exploring potential associations between health outcomes and voting behavior at the neighborhood level. You can also explore the data yourself using our Shiny App!
 
 ### Markdown
 
