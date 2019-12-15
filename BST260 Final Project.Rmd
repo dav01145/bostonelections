@@ -1,0 +1,448 @@
+---
+title: "BST260 Final Project"
+author: "Ta-wei Lin"
+date: "12/14/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyr)
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(shiny)
+library(tidyverse)
+library(forcats)
+library(hash)
+library(knitr)
+
+```
+
+## Overview and Motivation
+
+Existing research has demonstrated a complicated and context specific relationship between political participation and health outcomes. Individuals with chronic illness, poor mental health, and disabilities have been shown to be less likely to vote. This has in turn been theorized to further widen the inequities in political capital, which has major implications on various structural and social determinants of health. 
+
+Boston has a long and complicated history full of triumphs and failures. While the city has long been at the forefront of progressive and revolutionary ideals dating back to its colonial roots, it has also had to grapple with discriminatory housing and segregation policies that has led to a reputation of being one of the most racist cities in the United States. 
+
+These policies and practices have led to stark inequities in power, wealth, community resources, and health outcomes. As an example, there is a 33 year gap in life expectancy between the neighborhoods of Back Bay (a wealthy, predominately white neighborhood) and Roxbury (a once thriving predominately black neighborhood) , despite being separated by only a couple of miles. 
+
+With this project I am looking to analyze and visualize voting behavior within Boston neighborhoods over time. In this analysis, I am hoping to identify temporal trends in political participation. In addition, I would also like to visualize health outcome data by neighborhood to see if the historical patterns of political participation in any way mirror the patterns of health inequities by neighborhood. 
+
+## Related Work
+
+This project is largely inspired by the large body of work surrounding the relationship between politics, power, and health. Some papers that I found to be particularly impactful:
+
+- "Health and Voting in Young Adulthood" by Ojeda et al utilized the National Longitudinal Survey of Youth data to explore the association between particular health outcomes (namely depression, chronic disease, and self-reported health status) on voting behavior over time. 
+
+- "Politics and Health Outcomes" by Navarro et al looks at the relationship between political ideology at a national level and the extent to which those countries adopt redistributive policies to reduce social inequities. 
+
+- "The Politics of Health Policy" by Oliver et al looks at the role of the social construction of populations on the types of health policies that are passed. Populations with high levels of political power and positive social construction are more likely to be beneficiaries of health policies. 
+
+## Initial Quesitons
+
+As a long-time Boston resident, I wanted to look at voter participation data by neighborhood and begin to explore potential associations between health outcomes at a population level and voting. 
+
+Some initial questions that I am looking to answer:
+- What percentage of Boston residents are registered to vote?
+- Are there disparities in voter participation by neighborhood?
+- Are there temporal trends in voting behavior?
+- How drastically does voting behavior change during presidential elections? 
+- Can we see any relationship between health outcomes and political participation? 
+
+## Data
+
+Boston election data was derived from the City of Boston's election website (https://www.boston.gov/departments/elections/state-and-city-election-results).
+
+While the election data is publicly available for download, the data is only available in pdf format in the form of data tables organized by ward and precinct. This posed quite a challenge to gather the data into a usable format. 
+
+I used a screen capture OCR (optical character recognition) program to convert over 50 PDFs into table form. To convert these tables to neighborhood level data, I created a cross-walk that took data by ward and precinct and transformed to neighborhood-level data. I then merged the data tables together into a master file organized by neighborhood. I also created a long format of the data file for use in the shiny app. 
+
+```{r warning=FALSE}
+#function to convert election data by ward and precinct into neighborhood
+neighborhood <- function(data_in){
+  dat = data.frame(neighborhood =
+                      c("Allston", "Back Bay", "Beacon Hill", "Brighton", "Charlestown",
+                        "Chinatown", "Dorchester", "East Boston", "Fenway", "Harbor Islands",
+                        "Hyde Park", "Jamaica Plain", "Mattapan", "Mission Hill", "North End",
+                        "Roslindale", "Roxbury", "South Boston", "South End", "West End", "West Roxbury"),
+                   data_in = c(
+  allston       = rowSums(data_in %>% filter(ward==21) %>% select(precinct1:precinct8)) 
+                  + rowSums(data_in %>% filter(ward==22) %>% select(precinct1:precinct2)),
+  back_bay      = rowSums(data_in %>% filter(ward==5) %>% select(precinct3:precinct11)),
+  beacon_hill   = rowSums(data_in %>% filter(ward==3) %>% select(precinct6)),
+  brighton      = rowSums(data_in %>% filter(ward==21) %>% select(precinct9:precinct16)) 
+                  + rowSums(data_in %>% filter(ward==22) %>% select(precinct3:precinct13)),
+  charlestown   = rowSums(data_in %>% filter(ward==2) %>% select(precinct1:precinct7)),
+  chinatown     = rowSums(data_in %>% filter(ward==3) %>% select(precinct7:precinct8)) ,
+  dorchester    = rowSums(data_in %>% filter(ward==7) %>% select(precinct8:precinct10)) 
+                  + rowSums(data_in %>% filter(ward==8) %>% select(precinct6)) 
+                  + rowSums(data_in %>% filter(ward==13) %>% select(precinct3,precinct5:precinct10))
+                  + rowSums(data_in %>% filter(ward==14) %>% select(precinct1:precinct4,precinct6:precinct13))
+                  + rowSums(data_in %>% filter(ward==15) %>% select(precinct1:precinct9)) 
+                  + rowSums(data_in %>% filter(ward==16) %>% select(precinct1:precinct12)) 
+                  + rowSums(data_in %>% filter(ward==17) %>% select(precinct1:precinct14)) 
+                  + rowSums(data_in %>% filter(ward==18) %>% select(precinct1)),
+  east_boston   = rowSums(data_in %>% filter(ward==1) %>% select(precinct1:precinct14)),
+  fenway        = rowSums(data_in %>% filter(ward==4) %>% select(precinct5:precinct10)) 
+                  + rowSums(data_in %>% filter(ward==5) %>% select(precinct2)),
+  harbor_islands= rowSums(data_in %>% filter(ward==1) %>% select(precinct15)),
+  hyde_park     = rowSums(data_in %>% filter(ward==18) %>% select(precinct5, precinct6, precinct8, precinct12:precinct21, precinct23)),
+  jamaica_plain = rowSums(data_in %>% filter(ward==10) %>% select(precinct6:precinct9)) 
+                  + rowSums(data_in %>% filter(ward==11) %>% select(precinct4:precinct10)) 
+                  + rowSums(data_in %>% filter(ward==19) %>% select(precinct1:precinct9, precinct12)),
+  mattapan      = rowSums(data_in %>% filter(ward==14) %>% select(precinct5, precinct14))
+                  + rowSums(data_in %>% filter(ward==18) %>% select(precinct2:precinct4)),
+  mission_hill  = rowSums(data_in %>% filter(ward==10) %>% select(precinct1:precinct5)),
+  north_end     = rowSums(data_in %>% filter(ward==3) %>% select(precinct1:precinct4)),
+  roslindale    = rowSums(data_in %>% filter(ward==18) %>% select(precinct7, precinct9:precinct11, precinct22)) 
+                  + rowSums(data_in %>% filter(ward==19) %>% select(precinct10, precinct11, precinct13)) 
+                  + rowSums(data_in %>% filter(ward==20) %>% select(precinct2, precinct4, precinct8, precinct9)),
+  roxbury       = rowSums(data_in %>% filter(ward==8) %>% select(precinct2:precinct5, precinct7)) 
+                  + rowSums(data_in %>% filter(ward==9) %>% select(precinct3:precinct5)) 
+                  + rowSums(data_in %>% filter(ward==11) %>% select(precinct1:precinct3))  
+                  + rowSums(data_in %>% filter(ward==12) %>% select(precinct1:precinct9))  
+                  + rowSums(data_in %>% filter(ward==13) %>% select(precinct1, precinct2, precinct4)),
+  south_boston  = rowSums(data_in %>% filter(ward==6) %>% select(precinct1:precinct9))  
+                  + rowSums(data_in %>% filter(ward==7) %>% select(precinct1:precinct7)),
+  south_end     = rowSums(data_in %>% filter(ward==4) %>% select(precinct1:precinct4)) 
+                  + rowSums(data_in %>% filter(ward==5) %>% select(precinct1)) 
+                  + rowSums(data_in %>% filter(ward==8) %>% select(precinct1))  
+                  + rowSums(data_in %>% filter(ward==9) %>% select(precinct1:precinct2)),
+  west_end      = rowSums(data_in %>% filter(ward==3) %>% select(precinct5)),
+  west_roxbury  = rowSums(data_in %>% filter(ward==20) %>% select(precinct1, precinct3, precinct5:precinct7, precinct10:precinct20))
+  )
+)
+  return(dat)
+}
+
+#Import Datasets
+
+#2018 data - import and combine 2018 election data
+
+#create list of each sheet in excel worksheet
+dat_import_2018 = c('e_res_2018','e_reg_2018','e_votes_2018','p_reg_2018','p_votes_2018','p_votes_dem_2018','p_votes_rep_2018','p_votes_lib_2018')
+
+#create data frame that has one column of neighborhoods. 
+final_dat=data.frame(neighborhood =
+                       c("Allston", "Back Bay", "Beacon Hill", "Brighton", "Charlestown",
+                         "Chinatown", "Dorchester", "East Boston", "Fenway", "Harbor Islands",
+                         "Hyde Park", "Jamaica Plain", "Mattapan", "Mission Hill", "North End",
+                         "Roslindale", "Roxbury", "South Boston", "South End", "West End", "West Roxbury"))
+#iterate through each sheet and import data, with 2 columns each: neighborhood and name of sheet, which corresponds to the data point
+#join each imported dataset to final_dat dataset
+for (i in dat_import_2018) {
+  dat = read_excel("~/Sync/Harvard/BST260/Final Project/Data/2018 Boston Voter Data.xlsx", sheet = i)
+  dat = neighborhood(dat)
+  names(dat) = c("neighborhood",i)
+  final_dat = right_join(final_dat,dat,by="neighborhood")
+}
+
+#2017 data - import 2017 election data, merge with final_dat
+dat_import_2017 = c('e_res_2017','e_reg_2017','e_votes_2017')
+for (i in dat_import_2017) {
+  dat = read_excel("~/Sync/Harvard/BST260/Final Project/Data/2017 Boston Voter Data.xlsx", sheet = i)
+  dat = neighborhood(dat)
+  names(dat) = c("neighborhood",i)
+  final_dat = right_join(final_dat,dat,by="neighborhood")
+}
+
+#2008-2016 data - import data and merge with final_dat
+dat_import_08_16 = c('e_res_2016','e_reg_2016','e_votes_2016',
+                     'e_res_2015','e_reg_2015','e_votes_2015',
+                     'e_res_2014','e_reg_2014','e_votes_2014',
+                     'e_res_2013','e_reg_2013','e_votes_2013',
+                     'e_res_2012','e_reg_2012','e_votes_2012',
+                     'e_res_2011','e_reg_2011','e_votes_2011',
+                     'e_res_2010','e_reg_2010','e_votes_2010',
+                     'e_res_2009','e_reg_2009','e_votes_2009',
+                     'e_res_2008','e_reg_2008','e_votes_2008')
+for (i in dat_import_08_16) {
+  dat = read_excel("~/Sync/Harvard/BST260/Final Project/Data/2016 Boston Voter Data.xlsx", sheet = i)
+  dat = neighborhood(dat)
+  names(dat) = c("neighborhood",i)
+  final_dat = right_join(final_dat,dat,by="neighborhood")
+}
+
+#Collapse Allston/Brighton data and add row to copy of final_dat
+final_dat %>% filter(neighborhood %in% c("Allston","Brighton")) %>% adorn_totals(name="Allston/Brighton") -> allston_brighton
+final_dat2 <- rbind(final_dat,allston_brighton[3,])
+
+#Collapse Back Bay, Beacon Hill, North End, and West End data and add row to final_dat2
+final_dat %>% filter(neighborhood %in% c("Back Bay","Beacon Hill", "North End", "West End")) %>% adorn_totals(name="Back Bay/Beacon Hill/North End/West End") -> backbay_beaconhill_northend_westend
+final_dat2 <- rbind(final_dat2,backbay_beaconhill_northend_westend[5,])
+
+#Create a Boston Total row
+final_dat %>% adorn_totals(name="Boston Total") -> boston
+final_dat2 <- rbind(final_dat2, boston[22,])
+rm(allston_brighton,backbay_beaconhill_northend_westend, boston)
+
+
+#create data frame of percent registered voters who voted by neighborhood
+percent_vote = data.frame(neighborhood =
+             c("Allston", "Back Bay", "Beacon Hill", "Brighton", "Charlestown",
+               "Chinatown", "Dorchester", "East Boston", "Fenway", "Harbor Islands",
+               "Hyde Park", "Jamaica Plain", "Mattapan", "Mission Hill", "North End",
+               "Roslindale", "Roxbury", "South Boston", "South End", "West End", "West Roxbury","Allston/Brighton",
+               "Back Bay/Beacon Hill/North End/West End", "Boston Total"))
+percent_registered = percent_vote
+for (i in seq(2008,2018)) {
+  subset <- select(final_dat2, ends_with(as.character(i)))
+  percent_vote[,paste0("vote_per_",i)] <- assign(paste0("vote_percent",i), subset[3]/subset[2])
+  percent_registered [,paste0("reg_per_",i)] <- assign(paste0("register_percent",i),subset[2]/subset[1])
+  rm(list = ls(pattern = "^register_percent"))
+  rm(list = ls(pattern = "^vote_percent"))
+  rm(subset)
+}
+
+#change to long format
+percent_vote_long <- gather(percent_vote,"year","percent_vote",2:12) 
+percent_vote_long$year <- (substr(percent_vote_long$year,10,13))
+percent_vote_long$year = as.numeric(percent_vote_long$year)
+percent_vote_long <- percent_vote_long %>% arrange(neighborhood, year)
+
+percent_registered_long <- gather(percent_registered,"year","percent_registered",2:12) 
+percent_registered_long$year <- (substr(percent_registered_long$year,9,12))
+percent_registered_long$year = as.numeric(percent_registered_long$year)
+percent_registered_long <- percent_registered_long %>% arrange(neighborhood, year)
+
+
+```
+
+
+Demographic data by Boston neighborhood was derived from the Neighborhood Profiles Report compiled by the Boston Planning and Development Agency Research Division. 
+http://www.bostonplans.org/getattachment/7987d9b4-193b-4749-8594-e41f1ae27719
+Health data was derived from the Boston Public Health Commission's Health of Boston 2016-2017 Interactive Report. 
+
+The report has data available in a number of categories, including: social determinants of health, community assets, environmental health, chronic diseases, and mental health. 
+https://analytics.boston.gov/app/health-of-boston-2017 
+The report contains a plethora of information, including data on housing, development, and various demographic variables. 
+
+I compiled the demographic and health data by neighborhood into worksheets and merged the data with the master voting dataset. Because the demographic and health data consisted of data spanning from 2012-2016, I created a subset of the voting data limited to just the 2016 election year in order to generate scatter plots in the shiny app. 
+
+```{r warning=FALSE}
+demog = read_excel("~/Sync/Harvard/BST260/Final Project/Data/Health Data.xlsx", sheet = 'Demographics')
+health = read_excel("~/Sync/Harvard/BST260/Final Project/Data/Health Data.xlsx", sheet = 'Health')
+
+#combine health and demographic data with voting data
+combine_data <- left_join(final_dat2,demog,by="neighborhood")
+combine_data <- left_join(combine_data,health,by="neighborhood")
+
+
+#subset to 2016 data. Change percentages to be out of 100. 
+data_2016 <- combine_data %>% select(neighborhood, ends_with(as.character("2016")))
+data_2016 <-left_join(data_2016,demog,by="neighborhood")
+data_2016 <- left_join(data_2016,health,by="neighborhood")
+rm(demog,health)
+
+data_2016$vote_per_2016 = data_2016$e_votes_2016/data_2016$e_reg_2016
+data_2016$vote_per_2016 = data_2016$vote_per_2016*100
+
+data_2016$bach_higher_25_2015 = data_2016$bach_higher_25_2015*100
+data_2016$per_18_24_2015 = data_2016$per_18_24_2015*100
+data_2016$per_35_older_2015 = data_2016$per_35_older_2015*100
+data_2016$per_white_2015 = data_2016$per_white_2015*100
+data_2016$asthma_per_2012_2015 = data_2016$asthma_per_2012_2015*100
+data_2016$diabetes_per_2012_2015 = data_2016$diabetes_per_2012_2015*100
+data_2016$hypertension_2013_2015 = data_2016$hypertension_2013_2015*100
+data_2016$obesity_2013_2015 = data_2016$obesity_2013_2015*100
+data_2016$sadness_2015 = data_2016$sadness_2015*100
+
+#Save dataframes for later use in shiny app
+#save(data_2016, file="data_2016.Rda")
+#save(percent_vote_long, file="percent_vote_long.Rda")
+
+```
+
+## Exploratory Analysis
+
+My exploratory analysis largely consisted of spaghetti plots and scatter plots to begin to answer some of my initial questions and also to ensure that my data was structured properly to build the shiny app. I created initial spaghetti plots that looked at percent of residents that are registered to vote over time for all neighborhoods and percent of registered voters that voted in each election. The thick blue and red lines in the plots represent the overall trend for Boston. 
+
+As can be seen, there is quite a bit of variation between neighborhoods in percent of residents that are registered to vote. There is less variation between neighborhoods in percent of registered voters that cast a ballot, but there are still certain neighborhoods that consistently vote at a higher percentage as compared to others. 
+
+```{r warning=FALSE}
+#plot percent of residents registered over time
+neighborhood_data2 <- percent_registered_long %>% filter(!neighborhood %in% c("Allston/Brighton","Back Bay/Beacon Hill/North End/West End", "Boston Total", "Harbor Islands")) %>%
+  mutate(percent_registered_100 = percent_registered*100)
+boston_total2 <- percent_registered_long %>% filter(neighborhood %in% c("Boston Total")) %>%
+  mutate(percent_registered_100 = percent_registered*100)
+
+
+spag_percent_registered <- ggplot() +
+  geom_line(data=neighborhood_data2, aes(y=percent_registered_100, x=year, group=neighborhood), color="grey") +
+  geom_line(data=boston_total2, aes(y=percent_registered_100, x=year), color="red", size=3) +
+  ggtitle("Percentage of Residents Registered to Vote by Year") +
+  scale_y_continuous(name="Percent Registered") +
+  scale_x_continuous(name="Year", limits=c(2008, 2018), breaks=2008:2018)
+spag_percent_registered
+
+
+#plot percent vote over time
+neighborhood_data <- percent_vote_long %>% filter(!neighborhood %in% c("Allston/Brighton","Back Bay/Beacon Hill/North End/West End", "Boston Total")) %>%
+  mutate(percent_vote_100 = percent_vote*100)
+boston_total <- percent_vote_long %>% filter(neighborhood %in% c("Boston Total")) %>%
+  mutate(percent_vote_100 = percent_vote*100)
+  
+spag_percent_vote <- ggplot() +
+  geom_line(data=neighborhood_data, aes(y=percent_vote_100, x=year, group=neighborhood), color="grey") +
+  geom_line(data=boston_total, aes(y=percent_vote_100, x=year), color="blue", size=3) +
+  ggtitle("Voting Percentage Among Registered Voters by Year") +
+  scale_y_continuous(name="Percent Voted") +
+  scale_x_continuous(name="Year", limits=c(2008, 2018), breaks=2008:2018)
+spag_percent_vote
+```
+
+I also looked at various scatter plots using the 2016 election data. Below is an example of a scatter plot looking at voting percentage by median income. 
+
+```{r warning=FALSE}
+#test scatter plot of voting percentage by percent residents 18-24 years old
+scatter <- data_2016 %>% 
+  ggplot(aes(y=vote_per_2016,x=median_income_2015, color=neighborhood)) +
+  geom_point(show.legend = FALSE) +
+  geom_smooth(aes(x=median_income_2015,y=vote_per_2016), method='lm', se=FALSE, 
+              alpha=0.5, size=0.5, weight=0.5, color="grey") +
+  xlab("Median Income") +
+  ylab("Voting Percentage in 2016") +
+  ggtitle("Voting Percentage by Median Income")
+scatter
+```
+
+I then created a Shiny App that allowed me to perform exploratory analysis much more efficiently. The Shiny App is uploaded in the Github Repository and can also be accessed here:
+https://taweilin.shinyapps.io/final_shiny/
+
+
+## Final Analysis
+
+For the final analysis, I used the shiny app to help answer some of my initial questions. 
+
+### What percentage of Boston residents are registered to vote?
+
+Across all the years analyzed, the average percentage of residents registered to vote in Boston was 75.3%.
+
+### Are there disparities in voter participation by neighborhood?
+
+As seen in the table below and in the plot in the "Exploratory Analysis" section, there is quite a bit of variation in percent of residents that are registered to vote between neighborhoods. 
+
+The Fenway neighborhood has the lowest percentage of residents registered to vote in all election years, followed by Allston and East Boston. 
+
+The neighborhoods of West Roxbury, Roslindale, Jamaica Plain, Mattapan, Hyde Park, Charlestown, and South Boston consistently have the highest percentage of residents registered to vote. 
+
+```{r}
+table_1 = percent_registered_long %>% filter(!neighborhood %in% c("Allston/Brighton","Back Bay/Beacon Hill/North End/West End", "Harbor Islands")) %>% mutate(percent_registered_100 = percent_registered*100) %>%
+  rename("Neighborhood"="neighborhood") %>% group_by(Neighborhood) %>% summarize("Avg % Registered" = mean(percent_registered_100))
+table_1$`Avg % Registered` <- round(table_1$`Avg % Registered`, 2)
+kable(table_1, padding=0)
+
+```
+
+There is less variation between neighborhoods in voting percentage as compared with registered percentage, but certain neighborhoods appear to consistently vote more frequently than others, as can be seen in the plot in the "Exploratory Analysis" section. 
+
+The neighborhoods of West Roxbury, Jamaica Plain, Roslindale, and Charlestown have the highest voting percentages across all years. 
+
+The neighborhoods of Roxbury, Allston, Fenway, Mission Hill, Mattapan, and Chinatown have some of the lower voting percentages. The line at the very bottom represents the Harbor Islands, which have a very small residential population. 
+
+### Are there temporal trends in voting behavior? How drastically does voting behavior change during presidential elections? 
+
+The percentage of residents that are registered to vote remains relatively stable over the time period analyzed. However, there is a great deal of variation in voting over time. This is expected as voter participation is generally highest during presidential election years and lowest during odd-numbered years where there are typically no federal positions up for election. 
+
+As can be seen in the table below, the voting percentages were highest during the presidential election years of 2008, 2012, and 2016 (62%, 66%, and 67% respectively). The voting percentages were lowest during odd-numbered years. 
+
+
+```{r}
+table_2 = percent_vote_long %>% filter(neighborhood %in% c("Boston Total")) %>% mutate(percent_vote = percent_vote*100) %>% select(c(year,percent_vote)) %>%
+  rename("Year"="year", "Percent Voted" = "percent_vote") 
+table_2$`Percent Voted` <- round(table_2$`Percent Voted`, 2)
+kable(table_2, padding=0)
+```
+
+### Can we see any relationship between health outcomes and political participation? 
+
+Analyzing the relationship between health outcomes and political participation is quite a bit harder as the voting and health data are both at the neighborhood level. Therefore, we must be cautious with the interpretations of the analysis here, as there is a large risk of ecological fallacy if trying to make any sort of causal inference. However, looking at the neighborhood level associations between various demographic and health variables and political participation could provide us with early clues as to what the true relationship may be and may be a useful starting point for further study. 
+
+Much of the analysis was conducted using "Scatter Plot" tab of the shiny app (https://taweilin.shinyapps.io/final_shiny/). The tab creates a scatter plot of voting percentage during the 2016 election year and a selected demographic or health variable. A simple linear regression line is also included in the plots. 
+
+Demographic data by Boston neighborhood was derived from the Neighborhood Profiles Report compiled by the Boston Planning and Development Agency Research Division. The report contains a plethora of information, including data on housing, development, and various demographic variables. The demographic variables derived from the report include:
+- Percent of population age 18-24
+- Percent of population age 35 and older
+- Percent of population with a Bachelor's degree or higher
+- Percent of population white, non-Hispanic
+- Median income
+- Median rent
+
+Health data was derived from the Boston Public Health Commission's Health of Boston 2016-2017 Interactive Report. The report has data available in a number of categories, including: social determinants of health, community assets, environmental health, chronic diseases, and mental health. The health data derived from the report include:
+- Asthma
+- Diabetes
+- Hypertension
+- Obesity
+- Persistent Sadness
+
+**Age**
+
+Neighborhoods with a higher percentage of the population that are within the 18-24 age group tend to have lower voting percentages. This aligns with existing national research that shows that this age bracket is the least likely to vote. Conversely, neighborhoods that have a higher percentage of the population over the age of 35 have higher voting percentages. 
+
+```{r warning=FALSE}
+data_2016 %>% 
+  ggplot(aes(y=vote_per_2016,x=per_18_24_2015, color=neighborhood)) +
+  geom_point(show.legend = FALSE, size=5, alpha = .7) +
+  geom_smooth(aes(x=per_18_24_2015,y=vote_per_2016), method='lm', se=FALSE, 
+              alpha=0.5, size=0.5, weight=0.5, color="grey") +
+  xlab("Percent of Population 18-24") +
+  ylab("Voting Percentage in 2016") +
+  ggtitle("Voting Percentage by Percent of Population 18-24") +
+  theme_light()
+```
+
+**Income**
+
+Neighborhoods with higher median income also appear to have higher voting percentages. Again, the data cannot tell us if individuals with higher incomes are voting at higher percentages. However, there does appear to be some relationship between overall levels of income and voting at the neighborhood level. 
+
+
+```{r warning=FALSE}
+data_2016 %>% 
+  ggplot(aes(y=vote_per_2016,x=median_income_2015, color=neighborhood)) +
+  geom_point(show.legend = FALSE, size=5, alpha = .7) +
+  geom_smooth(aes(x=median_income_2015,y=vote_per_2016), method='lm', se=FALSE, 
+              alpha=0.5, size=0.5, weight=0.5, color="grey") +
+  xlab("Median Income") +
+  ylab("Voting Percentage in 2016") +
+  ggtitle("Voting Percentage by Median Income") +
+  theme_light()
+
+```
+
+
+**Health**
+
+For many of the health-related outcomes at the neighborhood level, such as asthma, diabetes, and obesity, there appears to be a very weak to null association with neighborhood level voter participation. 
+
+Neighborhoods with higher percentages of the population with diabetes and persistent sadness did appear to have lower levels of voter participation, suggesting that there may be some relationship worth further exploration. 
+
+Again, these results cannot say anything about how individuals with particular health outcomes are voting. It is merely showing the association between neighborhood level burdens of disease and neighborhood level voting percentages within this dataset. Previous research, however, has shown significant relationships between certain health outcomes during young adulthood/adulthood and voting behaviors and voting trajectories. This would imply that holding all else equal, communities with higher burdens of disease may have a lower likelihood of voting as compared to communities with lower burdens of disease.  
+
+```{r warning=FALSE}
+
+data_2016 %>% 
+  ggplot(aes(y=vote_per_2016,x=diabetes_per_2012_2015, color=neighborhood)) +
+  geom_point(show.legend = FALSE, size=5, alpha = .7) +
+  geom_smooth(aes(x=diabetes_per_2012_2015,y=vote_per_2016), method='lm', se=FALSE, 
+              alpha=0.5, size=0.5, weight=0.5, color="grey") +
+  xlab("Percentage of Population with Diabetes") +
+  ylab("Voting Percentage in 2016") +
+  ggtitle("Voting Percentage by Diabetes") +
+  theme_light()
+
+data_2016 %>% 
+  ggplot(aes(y=vote_per_2016,x=sadness_2015, color=neighborhood)) +
+  geom_point(show.legend = FALSE, size=5, alpha = .7) +
+  geom_smooth(aes(x=sadness_2015,y=vote_per_2016), method='lm', se=FALSE, 
+              alpha=0.5, size=0.5, weight=0.5, color="grey") +
+  xlab("Percent of Population Reporting Persistent Sadness") +
+  ylab("Voting Percentage in 2016") +
+  ggtitle("Voting Percentage by Persistent Sadness") +
+  theme_light()
+
+```
+
+
