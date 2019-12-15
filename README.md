@@ -12,4 +12,4 @@ In this repository, you will find the following files:
 The project webpage can be found here: https://sites.google.com/view/bostonelections/home
 
 ### Project Webcast
-The project webcast can be found here: 
+The project webcast can be viewed using this link as well as directly from the project webpage: https://vimeo.com/379525292
